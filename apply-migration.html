@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تطبيق Migration - إصلاح سياسات RLS</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+        }
+        h1 {
+            color: #00d4ff;
+            margin-bottom: 1.5rem;
+            font-size: 2rem;
+        }
+        .alert {
+            background: rgba(255, 193, 7, 0.2);
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .alert h2 {
+            color: #ffc107;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+        .steps {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .step {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .step:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        .step-number {
+            display: inline-block;
+            width: 35px;
+            height: 35px;
+            background: #00d4ff;
+            color: #000;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 35px;
+            font-weight: bold;
+            margin-left: 1rem;
+        }
+        .step-content {
+            margin-right: 3rem;
+        }
+        .code-block {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            direction: ltr;
+            text-align: left;
+        }
+        .btn {
+            background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+            color: #000;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: inline-block;
+            text-decoration: none;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 212, 255, 0.4);
+        }
+        .success {
+            background: rgba(40, 167, 69, 0.2);
+            border: 2px solid #28a745;
+            color: #28a745;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 2rem;
+        }
+        .link {
+            color: #00d4ff;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 إصلاح مشكلة التكرار اللانهائي في RLS</h1>
+
+        <div class="alert">
+            <h2>⚠️ المشكلة</h2>
+            <p>خطأ: <code>infinite recursion detected in policy for relation "admins"</code></p>
+            <p style="margin-top: 1rem;">السياسات الحالية تستعلم من نفس الجدول مما يسبب تكرار لا نهائي.</p>
+        </div>
+
+        <div class="steps">
+            <h2 style="color: #00d4ff; margin-bottom: 1.5rem;">📋 خطوات الحل</h2>
+
+            <div class="step">
+                <span class="step-number">1</span>
+                <div class="step-content">
+                    <h3 style="margin-bottom: 0.5rem;">افتح Supabase SQL Editor</h3>
+                    <p>اذهب إلى لوحة تحكم Supabase ثم افتح محرر SQL:</p>
+                    <a href="https://supabase.com/dashboard/project/btimrctryngufhcyqgfv/sql/new"
+                       target="_blank"
+                       class="btn"
+                       style="margin-top: 1rem; display: inline-block;">
+                        📝 افتح SQL Editor
+                    </a>
+                </div>
+            </div>
+
+            <div class="step">
+                <span class="step-number">2</span>
+                <div class="step-content">
+                    <h3 style="margin-bottom: 0.5rem;">انسخ كود SQL</h3>
+                    <p>انسخ الكود التالي بالكامل:</p>
+                    <button class="btn" onclick="copySql()" style="margin-top: 1rem;">
+                        📋 نسخ الكود
+                    </button>
+                    <div id="sql-code" class="code-block" style="margin-top: 1rem; max-height: 400px; overflow-y: auto;">-- إصلاح التكرار اللانهائي في سياسات RLS
+
+-- حذف السياسات القديمة
+DROP POLICY IF EXISTS "Users can view own profile" ON user_profiles;
+DROP POLICY IF EXISTS "Admins can view all profiles" ON user_profiles;
+DROP POLICY IF EXISTS "Employees can view client profiles" ON user_profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON user_profiles;
+DROP POLICY IF EXISTS "Admins can update all profiles" ON user_profiles;
+DROP POLICY IF EXISTS "Admins can insert profiles" ON user_profiles;
+DROP POLICY IF EXISTS "Admins can delete profiles" ON user_profiles;
+DROP POLICY IF EXISTS "Clients can view own projects" ON client_projects;
+DROP POLICY IF EXISTS "Staff can view all client projects" ON client_projects;
+DROP POLICY IF EXISTS "Staff can insert client projects" ON client_projects;
+DROP POLICY IF EXISTS "Staff can update client projects" ON client_projects;
+DROP POLICY IF EXISTS "Admins can delete client projects" ON client_projects;
+DROP POLICY IF EXISTS "Public can view company settings" ON company_settings;
+DROP POLICY IF EXISTS "Authenticated admins can update settings" ON company_settings;
+DROP POLICY IF EXISTS "Authenticated admins can insert settings" ON company_settings;
+
+-- دالة آمنة للحصول على نوع المستخدم
+CREATE OR REPLACE FUNCTION get_current_user_type()
+RETURNS text AS $$
+DECLARE
+  user_type_value text;
+BEGIN
+  SELECT user_type INTO user_type_value
+  FROM user_profiles
+  WHERE id = auth.uid();
+  RETURN COALESCE(user_type_value, 'client');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+
+-- دالة للتحقق من المسؤول
+CREATE OR REPLACE FUNCTION is_admin()
+RETURNS boolean AS $$
+BEGIN
+  RETURN get_current_user_type() = 'admin';
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+
+-- سياسات user_profiles
+CREATE POLICY "users_select_own" ON user_profiles FOR SELECT TO authenticated USING (auth.uid() = id);
+CREATE POLICY "admins_select_all" ON user_profiles FOR SELECT TO authenticated USING (is_admin());
+CREATE POLICY "users_update_own" ON user_profiles FOR UPDATE TO authenticated USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
+CREATE POLICY "admins_update_all" ON user_profiles FOR UPDATE TO authenticated USING (is_admin()) WITH CHECK (is_admin());
+CREATE POLICY "users_insert_own" ON user_profiles FOR INSERT TO authenticated WITH CHECK (auth.uid() = id);
+CREATE POLICY "admins_insert_any" ON user_profiles FOR INSERT TO authenticated WITH CHECK (is_admin());
+CREATE POLICY "admins_delete_any" ON user_profiles FOR DELETE TO authenticated USING (is_admin());
+
+-- سياسات client_projects
+CREATE POLICY "clients_select_own_projects" ON client_projects FOR SELECT TO authenticated USING (client_id = auth.uid() OR is_admin() OR get_current_user_type() = 'employee');
+CREATE POLICY "staff_insert_projects" ON client_projects FOR INSERT TO authenticated WITH CHECK (is_admin() OR get_current_user_type() = 'employee');
+CREATE POLICY "staff_update_projects" ON client_projects FOR UPDATE TO authenticated USING (is_admin() OR get_current_user_type() = 'employee') WITH CHECK (is_admin() OR get_current_user_type() = 'employee');
+CREATE POLICY "admins_delete_projects" ON client_projects FOR DELETE TO authenticated USING (is_admin());
+
+-- سياسات company_settings
+CREATE POLICY "anyone_select_settings" ON company_settings FOR SELECT USING (true);
+CREATE POLICY "admins_update_settings" ON company_settings FOR UPDATE TO authenticated USING (is_admin()) WITH CHECK (is_admin());
+CREATE POLICY "admins_insert_settings" ON company_settings FOR INSERT TO authenticated WITH CHECK (is_admin());
+CREATE POLICY "admins_delete_settings" ON company_settings FOR DELETE TO authenticated USING (is_admin());</div>
+                </div>
+            </div>
+
+            <div class="step">
+                <span class="step-number">3</span>
+                <div class="step-content">
+                    <h3 style="margin-bottom: 0.5rem;">الصق وشغّل الكود</h3>
+                    <p>الصق الكود في محرر SQL ثم اضغط على زر <strong>RUN</strong> أو <strong>Ctrl+Enter</strong></p>
+                </div>
+            </div>
+
+            <div class="step">
+                <span class="step-number">4</span>
+                <div class="step-content">
+                    <h3 style="margin-bottom: 0.5rem;">تحقق من النتيجة</h3>
+                    <p>يجب أن ترى رسالة نجاح: <code>Success. No rows returned</code></p>
+                </div>
+            </div>
+
+            <div class="step">
+                <span class="step-number">5</span>
+                <div class="step-content">
+                    <h3 style="margin-bottom: 0.5rem;">جرّب الحفظ مرة أخرى</h3>
+                    <p>ارجع إلى صفحة الإعدادات وجرب حفظ التغييرات. يجب أن يعمل الآن بدون أخطاء!</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="success" id="success-msg" style="display: none;">
+            <h3>✅ تم نسخ الكود بنجاح!</h3>
+            <p style="margin-top: 0.5rem;">الآن الصقه في محرر SQL في Supabase واضغط RUN</p>
+        </div>
+    </div>
+
+    <script>
+        function copySql() {
+            const sqlCode = document.getElementById('sql-code').textContent;
+            navigator.clipboard.writeText(sqlCode).then(() => {
+                const successMsg = document.getElementById('success-msg');
+                successMsg.style.display = 'block';
+                setTimeout(() => {
+                    successMsg.style.display = 'none';
+                }, 3000);
+            });
+        }
+    </script>
+</body>
+</html>
